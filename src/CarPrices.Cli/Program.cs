@@ -1,0 +1,102 @@
+﻿using CarPrices.Infrastructure;
+using CarPrices.Scraping;
+using CarPrices.Scraping.VinCheck;
+using CarPrices.Statistics;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+const string DefaultVinCheckUrl = "https://vincheck.it.com/data/salvage-auction-statistics.csv";
+
+var builder = Host.CreateApplicationBuilder(args);
+builder.Services.AddInfrastructure(builder.Configuration.GetConnectionString("Default"));
+builder.Services.AddStatistics();
+builder.Services.AddScraping();
+using var host = builder.Build();
+
+using var scope = host.Services.CreateScope();
+var sp = scope.ServiceProvider;
+
+var cmd = args.Length > 0 ? args[0].ToLowerInvariant() : "help";
+var sub = args.Length > 1 ? args[1].ToLowerInvariant() : "";
+
+switch (cmd)
+{
+    case "db" when sub == "migrate":
+        DbInitializer.Initialize(sp.GetRequiredService<AppDbContext>());
+        Console.WriteLine("Database migrated + seeded.");
+        break;
+
+    case "import" when sub == "vincheck":
+    {
+        var importer = sp.GetRequiredService<VinCheckImporter>();
+        VinCheckImporter.ImportResult r;
+        if (HasFlag(args, "--sample"))
+        {
+            var path = Path.Combine(CarDbPaths.DataDirectory(), "sample", "vincheck-sample.csv");
+            r = await importer.ImportFromFileAsync(path);
+        }
+        else if (TryGetOption(args, "--file", out var file))
+        {
+            r = await importer.ImportFromFileAsync(file);
+        }
+        else
+        {
+            var url = TryGetOption(args, "--url", out var u) ? u : DefaultVinCheckUrl;
+            r = await importer.ImportFromUrlAsync(url);
+        }
+        Console.WriteLine($"VinCheck import: {r.Rows} rows ({r.Inserted} new, {r.Updated} updated).");
+        break;
+    }
+
+    case "stats" when sub == "overview":
+    {
+        var stats = sp.GetRequiredService<StatisticsService>();
+        var o = await stats.GetMarketOverviewAsync();
+        Console.WriteLine($"Makes: {o.Makes}");
+        Console.WriteLine($"Models: {o.Models}");
+        Console.WriteLine($"Index rows: {o.IndexRows}");
+        Console.WriteLine($"Total observations: {o.TotalObservations}");
+        Console.WriteLine($"Median price: {(o.MedianPrice.HasValue ? o.MedianPrice.Value.ToString("C0") : "n/a")}");
+        Console.WriteLine($"Year range: {o.MinYear}-{o.MaxYear}");
+        break;
+    }
+
+    case "makes":
+    {
+        var stats = sp.GetRequiredService<StatisticsService>();
+        foreach (var m in await stats.GetMakeSummariesAsync())
+            Console.WriteLine($"{m.Make,-18} models={m.Models,-3} obs={m.Observations,-6} median={(m.MedianPrice.HasValue ? m.MedianPrice.Value.ToString("C0") : "n/a")}");
+        break;
+    }
+
+    default:
+        Console.WriteLine(
+            """
+            CarPrices CLI
+              db migrate                       Apply migrations + seed lookups
+              import vincheck --sample         Import the bundled sample index (data/sample)
+              import vincheck --file <path>    Import a local CSV/JSON index
+              import vincheck [--url <url>]    Download + import the live index
+              stats overview                   Print market overview
+              makes                            List makes with observation counts
+            """);
+        break;
+}
+
+static bool HasFlag(string[] args, string flag) =>
+    args.Any(a => string.Equals(a, flag, StringComparison.OrdinalIgnoreCase));
+
+static bool TryGetOption(string[] args, string name, out string value)
+{
+    for (var i = 0; i < args.Length - 1; i++)
+    {
+        if (string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase))
+        {
+            value = args[i + 1];
+            return true;
+        }
+    }
+    value = string.Empty;
+    return false;
+}

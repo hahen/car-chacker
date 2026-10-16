@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CarPrices.Domain\CarPrices.Domain.csproj" />
+    <ProjectReference Include="..\CarPrices.Infrastructure\CarPrices.Infrastructure.csproj" />
+    <ProjectReference Include="..\CarPrices.Statistics\CarPrices.Statistics.csproj" />
+    <ProjectReference Include="..\CarPrices.Scraping\CarPrices.Scraping.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,33 @@
+# Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+
+# Data (local SQLite database + downloads)
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/downloads/
+
+# EF
+*.db-journal
+
+# Node / React
+node_modules/
+web/dist/
+web/.vite/
+
+# IDE
+.vs/
+.idea/
+*.suo
+
+# Logs
+*.log
+logs/
+
+# OS
+Thumbs.db
+.DS_Store

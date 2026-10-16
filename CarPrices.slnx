@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CarPrices.Api/CarPrices.Api.csproj" />
+    <Project Path="src/CarPrices.Cli/CarPrices.Cli.csproj" />
+    <Project Path="src/CarPrices.Domain/CarPrices.Domain.csproj" />
+    <Project Path="src/CarPrices.Enrichment/CarPrices.Enrichment.csproj" />
+    <Project Path="src/CarPrices.Infrastructure/CarPrices.Infrastructure.csproj" />
+    <Project Path="src/CarPrices.Normalization/CarPrices.Normalization.csproj" />
+    <Project Path="src/CarPrices.Scraping/CarPrices.Scraping.csproj" />
+    <Project Path="src/CarPrices.Statistics/CarPrices.Statistics.csproj" />
+    <Project Path="src/CarPrices.Vision/CarPrices.Vision.csproj" />
+    <Project Path="src/CarPrices.Worker/CarPrices.Worker.csproj" />
+  </Folder>
+</Solution>
