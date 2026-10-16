@@ -16,6 +16,8 @@
     <ProjectReference Include="..\CarPrices.Infrastructure\CarPrices.Infrastructure.csproj" />
     <ProjectReference Include="..\CarPrices.Statistics\CarPrices.Statistics.csproj" />
     <ProjectReference Include="..\CarPrices.Scraping\CarPrices.Scraping.csproj" />
+    <ProjectReference Include="..\CarPrices.Enrichment\CarPrices.Enrichment.csproj" />
+    <ProjectReference Include="..\CarPrices.Vision\CarPrices.Vision.csproj" />
   </ItemGroup>
 
 </Project>

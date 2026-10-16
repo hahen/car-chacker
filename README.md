@@ -9,7 +9,9 @@ Full design: [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
 > importer, a statistics engine, a minimal Web API, and a React dashboard.
 > **Phase 1:** the Copart collector — a Playwright-based client scoped by collection targets,
 > make/model/trim normalization, idempotent Car/Lot upsert, and a close-capture pass for final prices.
-> IAAI, VIN decode, and VIN-from-image recovery come in later phases.
+> **Phase 2:** enrichment — NHTSA vPIC VIN decode (cached), baseline feature extraction, and
+> VIN-from-image recovery (barcode via ZXing, pluggable OCR, check-digit + masked-pattern validation).
+> IAAI and advanced analytics come in later phases.
 
 ## Prerequisites
 
@@ -90,6 +92,8 @@ targets list                    List collection targets
 targets sync                    Load collection targets from config into the DB
 scrape copart                   Run Copart discovery for enabled targets (needs Playwright)
 capture-close                   Re-check closed lots to record final sale prices
+enrich                          vPIC VIN decode + baseline feature extraction
+vin-from-image --file <p> [--lot <id>] [--pattern <11>]   Recover a VIN from an image
 ```
 
 ## Copart collector (Phase 1)
@@ -122,6 +126,36 @@ How it works:
 > ⚠️ The exact Copart field meanings and end-of-sale status codes were inferred from live responses;
 > the close-capture `SaleStatus` heuristics (`CopartCollector.ClassifyFinal`) should be tuned against
 > real sold lots. Raw payloads are retained so lots can be re-normalized without re-scraping.
+
+## Enrichment (Phase 2)
+
+Once lots are collected, enrichment fills in specs and features:
+
+```bash
+dotnet run --project src/CarPrices.Cli -- enrich      # decode VINs (vPIC) + extract features
+```
+
+- **VIN decode** — `VinDecodeService` calls the free NHTSA vPIC `DecodeVINValuesBatch` endpoint and
+  caches results in `VinDecodes`. It fills Car body/drivetrain/fuel/engine and cross-fills
+  make/model/trim via the taxonomy. Works on a full VIN or an 11-char VIN pattern.
+- **Features** — `FeatureExtractor` maps vPIC safety/drivetrain fields (adaptive cruise, blind spot,
+  lane keep, backup camera, AWD…) and free-text options (via `FeatureMappings`) to normalized
+  `CarFeatures`, each tagged with its source and a confidence.
+
+### VIN-from-image recovery
+
+Copart masks VINs in text but prints the full VIN in lot photos. `CarPrices.Vision` recovers it:
+
+```bash
+dotnet run --project src/CarPrices.Cli -- vin-from-image --file label.jpg --pattern 4T1BF3EK2AU
+```
+
+- **Barcode first** (`BarcodeVinReader`, ZXing + SkiaSharp) — the most reliable path when a VIN
+  barcode (Code 39/128, Data Matrix, PDF417, QR) is present.
+- **OCR fallback** — pluggable via `IOcrEngine` (default `NullOcrEngine`; drop in Tesseract or a cloud engine).
+- **Validation** — a candidate is accepted only if it is check-digit valid **and** its prefix matches
+  the masked VIN from the listing. Every attempt is logged to `VinExtractions`; an accepted VIN is
+  written back to the Car with `VinSource` = PhotoBarcode/PhotoOcr.
 
 ## Notes
 

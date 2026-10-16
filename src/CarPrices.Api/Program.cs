@@ -1,3 +1,4 @@
+using CarPrices.Enrichment;
 using CarPrices.Infrastructure;
 using CarPrices.Scraping;
 using CarPrices.Scraping.Collection;
@@ -11,6 +12,7 @@ var connectionString = builder.Configuration.GetConnectionString("Default");
 builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddStatistics();
 builder.Services.AddScraping(builder.Configuration);
+builder.Services.AddEnrichment(builder.Configuration);
 builder.Services.AddOpenApi();
 builder.Services.AddCors(o => o.AddPolicy("spa", p => p
     .WithOrigins("http://localhost:5173", "http://localhost:4173")
@@ -76,6 +78,9 @@ api.MapPost("/scrape/copart/discovery", async (CopartCollector collector, Cancel
 
 api.MapPost("/scrape/copart/close-capture", async (CopartCollector collector, CancellationToken ct) =>
     Results.Ok(await collector.RunCloseCaptureAsync(200, ct)));
+
+api.MapPost("/enrich", async (EnrichmentService svc, CancellationToken ct) =>
+    Results.Ok(await svc.RunAsync(200, ct)));
 
 // SPA fallback (serves wwwroot/index.html when a React build is present).
 app.MapFallbackToFile("index.html");

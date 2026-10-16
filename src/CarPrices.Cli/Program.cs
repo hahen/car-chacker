@@ -1,5 +1,8 @@
 ﻿using CarPrices.Domain.Entities;
+using CarPrices.Domain.Vin;
+using CarPrices.Enrichment;
 using CarPrices.Infrastructure;
+using CarPrices.Vision;
 using CarPrices.Scraping;
 using CarPrices.Scraping.Collection;
 using CarPrices.Scraping.Copart;
@@ -15,6 +18,8 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddInfrastructure(builder.Configuration.GetConnectionString("Default"));
 builder.Services.AddStatistics();
 builder.Services.AddScraping(builder.Configuration);
+builder.Services.AddEnrichment(builder.Configuration);
+builder.Services.AddVision();
 using var host = builder.Build();
 
 using var scope = host.Services.CreateScope();
@@ -124,6 +129,40 @@ switch (cmd)
         break;
     }
 
+    case "enrich":
+    {
+        var svc = sp.GetRequiredService<EnrichmentService>();
+        var r = await svc.RunAsync();
+        Console.WriteLine($"Enrichment: {r.CarsProcessed} cars, {r.Decoded} decoded, {r.FeaturesAdded} features, {r.Errors} errors");
+        break;
+    }
+
+    case "vin-from-image":
+    {
+        if (!(TryGetOption(args, "--file", out var file) && File.Exists(file)))
+        {
+            Console.WriteLine("--file <path> is required.");
+            break;
+        }
+        var bytes = await File.ReadAllBytesAsync(file);
+        if (TryGetOption(args, "--lot", out var ls) && long.TryParse(ls, out var lotId))
+        {
+            var rec = sp.GetRequiredService<VinImageRecoveryService>();
+            var res = await rec.ProcessLotImageAsync(lotId, bytes);
+            Console.WriteLine($"Candidates={res.Candidates} recovered={(res.Recovered ? res.Vin : "(none)")} method={res.Method} conf={res.Confidence}");
+        }
+        else
+        {
+            var ext = sp.GetRequiredService<VinImageExtractor>();
+            var pattern = TryGetOption(args, "--pattern", out var p) ? p : null;
+            var cands = ext.ExtractCandidates(bytes);
+            foreach (var c in cands)
+                Console.WriteLine($"{c.Vin} method={c.Method} valid={c.CheckDigitValid} matches={VinValidator.MatchesMaskedPattern(c.Vin, pattern)} conf={c.Confidence}");
+            Console.WriteLine($"best={ext.BestCandidate(cands, pattern)?.Vin ?? "(none)"}");
+        }
+        break;
+    }
+
     default:
         Console.WriteLine(
             """
@@ -139,6 +178,8 @@ switch (cmd)
               targets add --make <m> [--model <m>] [--trim <t>] [--year-from <y>] [--year-to <y>] [--sources <a,b>]
               scrape copart                    Run Copart discovery for enabled targets (needs Playwright)
               capture-close                    Re-check closed lots to record final prices
+              enrich                           vPIC VIN decode + baseline feature extraction
+              vin-from-image --file <path> [--lot <id>] [--pattern <11>]   Recover VIN from an image
             """);
         break;
 }
