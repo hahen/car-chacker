@@ -1,5 +1,8 @@
-﻿using CarPrices.Infrastructure;
+﻿using CarPrices.Domain.Entities;
+using CarPrices.Infrastructure;
 using CarPrices.Scraping;
+using CarPrices.Scraping.Collection;
+using CarPrices.Scraping.Copart;
 using CarPrices.Scraping.VinCheck;
 using CarPrices.Statistics;
 using Microsoft.Extensions.Configuration;
@@ -11,7 +14,7 @@ const string DefaultVinCheckUrl = "https://vincheck.it.com/data/salvage-auction-
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddInfrastructure(builder.Configuration.GetConnectionString("Default"));
 builder.Services.AddStatistics();
-builder.Services.AddScraping();
+builder.Services.AddScraping(builder.Configuration);
 using var host = builder.Build();
 
 using var scope = host.Services.CreateScope();
@@ -70,6 +73,57 @@ switch (cmd)
         break;
     }
 
+    case "targets" when sub == "sync":
+    {
+        var svc = sp.GetRequiredService<CollectionTargetService>();
+        Console.WriteLine($"Synced targets from config: {await svc.SyncFromConfigAsync()} added.");
+        break;
+    }
+
+    case "targets" when sub == "list":
+    {
+        var svc = sp.GetRequiredService<CollectionTargetService>();
+        foreach (var t in await svc.GetAllAsync())
+            Console.WriteLine($"[{(t.Enabled ? "x" : " ")}] {t.MakeText} {t.ModelText} {t.TrimText} {t.YearFrom}-{t.YearTo} sources={t.Sources ?? "all"}");
+        break;
+    }
+
+    case "targets" when sub == "add":
+    {
+        var make = TryGetOption(args, "--make", out var mk) ? mk : "";
+        if (string.IsNullOrWhiteSpace(make)) { Console.WriteLine("--make is required."); break; }
+        var cdb = sp.GetRequiredService<AppDbContext>();
+        cdb.CollectionTargets.Add(new CollectionTarget
+        {
+            MakeText = make,
+            ModelText = TryGetOption(args, "--model", out var mo) ? mo : null,
+            TrimText = TryGetOption(args, "--trim", out var tr) ? tr : null,
+            YearFrom = TryGetOption(args, "--year-from", out var yf) && int.TryParse(yf, out var yfi) ? yfi : null,
+            YearTo = TryGetOption(args, "--year-to", out var yt) && int.TryParse(yt, out var yti) ? yti : null,
+            Sources = TryGetOption(args, "--sources", out var sc) ? sc : null,
+            Enabled = true,
+        });
+        await cdb.SaveChangesAsync();
+        Console.WriteLine($"Added target: {make} {(TryGetOption(args, "--model", out var m2) ? m2 : "")}");
+        break;
+    }
+
+    case "scrape" when sub == "copart":
+    {
+        var collector = sp.GetRequiredService<CopartCollector>();
+        var r = await collector.RunDiscoveryAsync();
+        Console.WriteLine($"Discovery run #{r.RunId}: seen={r.LotsSeen} new={r.New} updated={r.Updated} errors={r.Errors}");
+        break;
+    }
+
+    case "capture-close":
+    {
+        var collector = sp.GetRequiredService<CopartCollector>();
+        var r = await collector.RunCloseCaptureAsync();
+        Console.WriteLine($"Close-capture run #{r.RunId}: seen={r.LotsSeen} captured={r.PricesCaptured} updated={r.Updated} errors={r.Errors}");
+        break;
+    }
+
     default:
         Console.WriteLine(
             """
@@ -80,6 +134,11 @@ switch (cmd)
               import vincheck [--url <url>]    Download + import the live index
               stats overview                   Print market overview
               makes                            List makes with observation counts
+              targets sync                     Load collection targets from config into the DB
+              targets list                     List collection targets
+              targets add --make <m> [--model <m>] [--trim <t>] [--year-from <y>] [--year-to <y>] [--sources <a,b>]
+              scrape copart                    Run Copart discovery for enabled targets (needs Playwright)
+              capture-close                    Re-check closed lots to record final prices
             """);
         break;
 }

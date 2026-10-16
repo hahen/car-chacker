@@ -11,4 +11,7 @@
     <Project Path="src/CarPrices.Vision/CarPrices.Vision.csproj" />
     <Project Path="src/CarPrices.Worker/CarPrices.Worker.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CarPrices.Tests/CarPrices.Tests.csproj" />
+  </Folder>
 </Solution>

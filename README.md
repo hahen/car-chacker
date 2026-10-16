@@ -5,16 +5,19 @@ A private, single-user tool to collect vehicle data and final sale prices from C
 
 Full design: [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
 
-> **Phase 0 (this scaffold):** solution + schema + SQLite + migrations + seed data, a VinCheck
-> aggregate-index importer, a basic statistics engine, a minimal Web API, and a React dashboard.
-> Scraping (Copart/IAAI), VIN decode, VIN-from-image recovery, and the live price collector come
-> in later phases.
+> **Phase 0:** solution + schema + SQLite + migrations + seed data, a VinCheck aggregate-index
+> importer, a statistics engine, a minimal Web API, and a React dashboard.
+> **Phase 1:** the Copart collector — a Playwright-based client scoped by collection targets,
+> make/model/trim normalization, idempotent Car/Lot upsert, and a close-capture pass for final prices.
+> IAAI, VIN decode, and VIN-from-image recovery come in later phases.
 
 ## Prerequisites
 
 - **.NET 10 SDK** (tested with 10.0.303)
 - **Node.js 20 LTS or newer** for the React UI — ⚠️ the machine currently has Node v10, which is
   too old for Vite. Update Node before running the frontend.
+- **Playwright browsers** for the Copart collector — after a build, install once:
+  `pwsh src/CarPrices.Cli/bin/Debug/net10.0/playwright.ps1 install chromium`
 
 ## Solution layout
 
@@ -82,7 +85,43 @@ import vincheck --file <path>   Import a local CSV/JSON index
 import vincheck [--url <url>]   Download + import the live index
 stats overview                  Print market overview
 makes                           List makes with observation counts
+targets add --make <m> [--model <m>] [--year-from <y>] [--sources <a,b>]
+targets list                    List collection targets
+targets sync                    Load collection targets from config into the DB
+scrape copart                   Run Copart discovery for enabled targets (needs Playwright)
+capture-close                   Re-check closed lots to record final sale prices
 ```
+
+## Copart collector (Phase 1)
+
+The collector is **scoped by collection targets** so it only pulls the cars you care about, never the
+whole catalog. Targets come from the `Collection` config section (API/Worker) or the CLI:
+
+```bash
+# define what to collect
+dotnet run --project src/CarPrices.Cli -- targets add --make BMW --model "3 Series" --year-from 2020 --sources Copart
+dotnet run --project src/CarPrices.Cli -- targets list
+
+# install the browser once, then collect
+pwsh src/CarPrices.Cli/bin/Debug/net10.0/playwright.ps1 install chromium
+dotnet run --project src/CarPrices.Cli -- scrape copart      # discovery: upsert current lots
+dotnet run --project src/CarPrices.Cli -- capture-close      # record final prices for closed lots
+```
+
+How it works:
+
+- **CopartClient** (`CarPrices.Scraping/Copart`) drives real Chromium via Playwright, warms a page to
+  pick up the Imperva/Incapsula cookies, then calls `/public/lots/search-results` *from inside the page*
+  (plain HTTP clients get challenged). Pagination is capped at 50 pages/query; delays are jittered.
+- **CopartLotParser** decodes the short-key JSON into `ScrapedLot`; **LotIngestionService** resolves
+  make/model/trim via the alias tables and upserts Cars + Lots + RawPayload, idempotent on
+  (Source, LotNumber, AuctionDate). Cars are deduped by full VIN when one is present.
+- **Close-capture** re-checks lots whose auction has passed and records the final bid as `SalePrice`.
+- The **Worker** can run discovery + close-capture on a schedule — set `Worker:Enabled=true`.
+
+> ⚠️ The exact Copart field meanings and end-of-sale status codes were inferred from live responses;
+> the close-capture `SaleStatus` heuristics (`CopartCollector.ClassifyFinal`) should be tuned against
+> real sold lots. Raw payloads are retained so lots can be re-normalized without re-scraping.
 
 ## Notes
 
