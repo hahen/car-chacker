@@ -19,6 +19,8 @@ data/.playwright/
 node_modules/
 web/dist/
 web/.vite/
+# Built SPA served by the API (output of `npm run build`)
+src/CarPrices.Api/wwwroot/
 
 # IDE
 .vs/

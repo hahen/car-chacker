@@ -18,7 +18,6 @@ export function PriceChart({ points }: Props) {
   const padT = 16
   const padB = 36
 
-  const years = pts.map((p) => p.year)
   const lows = pts.map((p) => p.p25 ?? p.p50!)
   const highs = pts.map((p) => p.p75 ?? p.p50!)
   const minY = Math.min(...lows)
