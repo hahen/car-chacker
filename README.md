@@ -222,6 +222,25 @@ Needs tuning / known limits:
   the `ClassifyFinal` / `DetectSold` heuristics can only be tuned once lots actually close.
 - Use `dotnet run --project src/CarPrices.Cli -- dump` to inspect captured cars / lots / features.
 
+## Historical sold prices (carsbidshistory)
+
+Copart/IAAI only list *current* lots, so the 3-year sold-price history comes from the
+carsbidshistory.com archive (free, Copart-sourced, data back to 2017):
+
+```bash
+dotnet run --project src/CarPrices.Cli -- scrape history --make BMW --model 330i --year-from 2020
+```
+
+- `CarsBidsHistoryParser` resolves the make id, matches model(s), paginates each model's listing, and
+  parses each car's per-VIN **bid-history table** into one sold `Lot` (the latest sale) with full VIN,
+  sale price, date, odometer, and damage.
+- `--year-from` / `--year-to` filter by model year; `--max-cars` caps detail fetches per model.
+- ⚠️ carsbidshistory files trims as separate "models" — the generic `3 SERIES` entry skews to old
+  salvage, so scrape specific trims (`330i`, `340i`, `m340i`) for modern cars.
+- Sold lots feed PriceStats, the estimator, and the inventory browse. (Photos on that site are
+  JS-loaded, so history lots currently show no thumbnail; current IAAI lots do.)
+- Verified live: BMW 330i + 3 Series 2020+ → **62 sold lots, median ~$13,800, 2020–2025**.
+
 ## Notes
 
 - `data/sample/vincheck-sample.csv` is **illustrative sample data**, not real auction results.
