@@ -9,6 +9,7 @@ using CarPrices.Scraping.Copart;
 using CarPrices.Scraping.Iaai;
 using CarPrices.Scraping.VinCheck;
 using CarPrices.Statistics;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -68,6 +69,26 @@ switch (cmd)
         Console.WriteLine($"Total observations: {o.TotalObservations}");
         Console.WriteLine($"Median price: {(o.MedianPrice.HasValue ? o.MedianPrice.Value.ToString("C0") : "n/a")}");
         Console.WriteLine($"Year range: {o.MinYear}-{o.MaxYear}");
+        break;
+    }
+
+    case "dump":
+    {
+        var ctx = sp.GetRequiredService<AppDbContext>();
+        Console.WriteLine($"Cars={await ctx.Cars.CountAsync()} Lots={await ctx.Lots.CountAsync()} CarFeatures={await ctx.CarFeatures.CountAsync()} LotImages={await ctx.LotImages.CountAsync()} VinDecodes={await ctx.VinDecodes.CountAsync()}");
+        Console.WriteLine("\n-- recent cars --");
+        foreach (var c in await ctx.Cars.Include(x => x.Maker).Include(x => x.Model).OrderByDescending(x => x.Id).Take(15).ToListAsync())
+        {
+            var fc = await ctx.CarFeatures.CountAsync(f => f.CarId == c.Id);
+            Console.WriteLine($"{c.Maker?.Name,-8} {c.Model?.Name,-10} {c.ModelYear}  vin={c.Vin ?? c.VinPattern + "(pat)"} src={c.VinSource} decoded={c.VinDecoded} drive={c.DriveType} fuel={c.FuelType} feats={fc}");
+        }
+        Console.WriteLine("\n-- recent lots --");
+        foreach (var l in await ctx.Lots.Include(x => x.TitleType).Include(x => x.PrimaryDamage).OrderByDescending(x => x.Id).Take(15).ToListAsync())
+            Console.WriteLine($"{l.Source} {l.SourceLotNumber,-12} bid={l.CurrentBid} buyNow={l.BuyNowPrice} status={l.SaleStatus} title={l.TitleType?.Code} dmg={l.PrimaryDamage?.Code} odo={l.Odometer} {l.LocationState} auction={l.AuctionDateUtc:yyyy-MM-dd}");
+        Console.WriteLine("\n-- feature counts --");
+        foreach (var r in await ctx.CarFeatures.Join(ctx.Features, cf => cf.FeatureId, f => f.Id, (cf, f) => f.Code)
+                     .GroupBy(code => code).Select(g => new { Code = g.Key, N = g.Count() }).OrderByDescending(x => x.N).ToListAsync())
+            Console.WriteLine($"{r.Code,-20} {r.N}");
         break;
     }
 
@@ -198,6 +219,7 @@ switch (cmd)
               import vincheck [--url <url>]    Download + import the live index
               stats overview                   Print market overview
               stats rollup                     Recompute PriceStats + FeaturePriceImpact from sold lots
+              dump                             Print recent cars / lots / features (ops/debug)
               makes                            List makes with observation counts
               targets sync                     Load collection targets from config into the DB
               targets list                     List collection targets

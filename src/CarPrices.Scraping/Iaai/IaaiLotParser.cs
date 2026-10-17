@@ -2,6 +2,8 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
+using CarPrices.Domain.Enums;
+using CarPrices.Scraping.Ingestion;
 
 namespace CarPrices.Scraping.Iaai;
 
@@ -76,21 +78,32 @@ public static partial class IaaiLotParser
         var img = card.QuerySelector("img[data-src]")?.GetAttribute("data-src");
         if (!string.IsNullOrWhiteSpace(img)) lot.ImageUrls.Add(img!);
 
-        // Title doc + primary/loss from the first search data-list section (ordered values).
-        var section = card.QuerySelector(".data-list--search");
-        if (section is not null)
+        // Title + damage: classify across all data-list values — the value order varies card to card
+        // (some lead with the stock number), so positional indexing is unreliable.
+        var values = card.QuerySelectorAll(".data-list__value")
+            .Select(v => Collapse(v.TextContent)).Where(s => s.Length > 0).ToList();
+        var damages = new List<string>();
+        foreach (var v in values)
         {
-            var vals = section.QuerySelectorAll(".data-list__value")
-                .Select(v => Collapse(v.TextContent)).Where(s => s.Length > 0).ToList();
-            if (vals.Count > 0) lot.TitleDescription = vals[0];   // e.g. Salvage
-            if (vals.Count > 1) lot.PrimaryDamage = vals[1];      // e.g. Front End
-            if (vals.Count > 2) lot.SecondaryDamage = vals[2];    // e.g. Collision (loss type)
+            if (lot.TitleDescription is null && CopartMappings.TitleGroupFrom(null, v) != TitleGroup.Unknown)
+            {
+                lot.TitleDescription = v;
+                continue;
+            }
+            var code = CopartMappings.DamageCodeFrom(v);
+            if (code is not null && code != "UNKNOWN" && damages.Count < 2 && !damages.Contains(v))
+                damages.Add(v);
         }
+        if (damages.Count > 0) lot.PrimaryDamage = damages[0];
+        if (damages.Count > 1) lot.SecondaryDamage = damages[1];
 
         var text = Collapse(card.TextContent);
 
-        var od = OdometerRe().Match(text);
-        if (od.Success && int.TryParse(od.Groups[1].Value.Replace(",", ""), out var miles)) lot.Odometer = miles;
+        // Odometer: take the largest "N mi" match (avoids stray small numbers before 'mi').
+        var odos = OdometerRe().Matches(text)
+            .Select(mm => int.TryParse(mm.Groups[1].Value.Replace(",", ""), out var v) ? v : 0)
+            .Where(v => v > 0).ToList();
+        if (odos.Count > 0) lot.Odometer = odos.Max();
 
         if (text.Contains("Key Available", StringComparison.OrdinalIgnoreCase)) lot.HasKeys = true;
         else if (text.Contains("No Key", StringComparison.OrdinalIgnoreCase) ||

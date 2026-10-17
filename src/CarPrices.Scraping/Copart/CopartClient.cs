@@ -37,7 +37,17 @@ public sealed class CopartClient(CopartOptions options, ILogger logger) : IAsync
         _page.SetDefaultTimeout(options.NavTimeoutMs);
 
         logger.LogInformation("Warming up Copart session…");
-        await _page.GotoAsync(options.BaseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
+        try
+        {
+            // Commit returns as soon as the server responds; Copart's Incapsula-heavy homepage often
+            // never fires DOMContentLoaded under the headless shell.
+            await _page.GotoAsync(options.BaseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.Commit, Timeout = options.NavTimeoutMs });
+        }
+        catch (TimeoutException)
+        {
+            logger.LogWarning("Copart warm-up navigation timed out; continuing (Incapsula may still set cookies).");
+        }
+        await Task.Delay(5000, ct); // let Incapsula's JS challenge run and set cookies
         await JitterAsync(ct);
     }
 

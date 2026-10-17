@@ -200,6 +200,28 @@ API: `GET /api/stats/sold-overview`, `GET /api/stats/price-stats`, `GET /api/sta
 `POST /api/stats/rollup`, `POST /api/estimate`. The dashboard adds a captured-sold-data overview and a
 price-estimator panel.
 
+## Live run status (first end-to-end run, 2026-10-17)
+
+Validated against live sources:
+
+- **IAAI discovery works headless** — real BMW 3 Series lots parsed and ingested (identity, VIN
+  pattern, damage, title, odometer, image URLs).
+- **vPIC enrichment works** — VIN patterns decoded; specs + ~9 features/car extracted (adaptive
+  cruise, blind spot, AEB, backup camera, AWD/RWD, …).
+- **Analytics** compute correctly once sold prices exist.
+
+Needs tuning / known limits:
+
+- **Copart is blocked headless** — Incapsula returns HTTP 403 to the headless-shell browser. It needs
+  a **headed** full-Chromium browser on an interactive desktop (`Copart:Headless=false`, run the
+  CLI/Worker from your own session) or a **residential proxy**. Warm-up now uses `WaitUntil=Commit`
+  so it no longer times out on Copart's homepage.
+- **IAAI body fields** — title and damage are classified by keyword (reliable); bid vs buy-now price,
+  a few placeholder-card odometers, and buy-now-only statuses still need DOM-targeted parsing.
+- **Close-capture / sold prices** — current lots are all *upcoming*, so there are no sold prices yet;
+  the `ClassifyFinal` / `DetectSold` heuristics can only be tuned once lots actually close.
+- Use `dotnet run --project src/CarPrices.Cli -- dump` to inspect captured cars / lots / features.
+
 ## Notes
 
 - `data/sample/vincheck-sample.csv` is **illustrative sample data**, not real auction results.
