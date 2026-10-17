@@ -20,6 +20,7 @@
     <ProjectReference Include="..\..\src\CarPrices.Domain\CarPrices.Domain.csproj" />
     <ProjectReference Include="..\..\src\CarPrices.Infrastructure\CarPrices.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\CarPrices.Normalization\CarPrices.Normalization.csproj" />
+    <ProjectReference Include="..\..\src\CarPrices.Statistics\CarPrices.Statistics.csproj" />
     <ProjectReference Include="..\..\src\CarPrices.Scraping\CarPrices.Scraping.csproj" />
     <ProjectReference Include="..\..\src\CarPrices.Enrichment\CarPrices.Enrichment.csproj" />
     <ProjectReference Include="..\..\src\CarPrices.Vision\CarPrices.Vision.csproj" />

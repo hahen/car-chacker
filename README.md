@@ -13,7 +13,8 @@ Full design: [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
 > VIN-from-image recovery (barcode via ZXing, pluggable OCR, check-digit + masked-pattern validation).
 > **Phase 3:** the IAAI collector — Playwright + HTML parsing (AngleSharp) behind Incapsula, scoped by
 > the same collection targets, with discovery, image-URL capture, and best-effort close-capture.
-> Advanced analytics (price rollups, feature impact, estimator) come in later phases.
+> **Phase 4:** analytics — PriceStats rollups and FeaturePriceImpact from captured sold lots, plus a
+> comparable-based price estimator, surfaced in the API and dashboard.
 
 ## Prerequisites
 
@@ -88,6 +89,7 @@ import vincheck --sample        Import the bundled sample index (data/sample)
 import vincheck --file <path>   Import a local CSV/JSON index
 import vincheck [--url <url>]   Download + import the live index
 stats overview                  Print market overview
+stats rollup                    Recompute PriceStats + FeaturePriceImpact from sold lots
 makes                           List makes with observation counts
 targets add --make <m> [--model <m>] [--year-from <y>] [--sources <a,b>]
 targets list                    List collection targets
@@ -177,6 +179,26 @@ dotnet run --project src/CarPrices.Cli -- vin-from-image --file label.jpg --patt
 - **Validation** — a candidate is accepted only if it is check-digit valid **and** its prefix matches
   the masked VIN from the listing. Every attempt is logged to `VinExtractions`; an accepted VIN is
   written back to the Car with `VinSource` = PhotoBarcode/PhotoOcr.
+
+## Analytics (Phase 4)
+
+Once sold prices are captured (collectors + close-capture), compute and explore analytics:
+
+```bash
+dotnet run --project src/CarPrices.Cli -- stats rollup   # recompute PriceStats + FeaturePriceImpact
+```
+
+- **PriceStats** (`RollupService`) — percentile rollups (min/mean/median/P25/P75/P90/stddev + mean
+  odometer) by maker, maker+model, and maker+model+year over sold lots (min sample size enforced).
+- **FeaturePriceImpact** (`FeatureImpactService`) — mean sold price *with* vs *without* each feature
+  within a maker+model segment, with absolute and percentage deltas.
+- **Price estimator** (`EstimatorService`) — finds comparable sold lots (maker/model/trim, year within
+  a tolerance, optional title/damage group) and returns the distribution + a suggested price, with an
+  optional linear mileage adjustment.
+
+API: `GET /api/stats/sold-overview`, `GET /api/stats/price-stats`, `GET /api/stats/feature-impact`,
+`POST /api/stats/rollup`, `POST /api/estimate`. The dashboard adds a captured-sold-data overview and a
+price-estimator panel.
 
 ## Notes
 

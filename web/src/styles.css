@@ -221,14 +221,46 @@ tr.active {
   color: var(--muted);
 }
 
-select {
+select,
+input {
   background: var(--panel);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 7px 10px;
   font-size: 14px;
-  min-width: 160px;
+  min-width: 140px;
+}
+
+.sold {
+  margin-top: 24px;
+}
+
+.sold-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.sold-head h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.estimator {
+  margin-top: 16px;
+}
+
+.muted-note {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.muted-note code {
+  background: var(--accent-weak);
+  padding: 1px 5px;
+  border-radius: 4px;
 }
 
 .chart {

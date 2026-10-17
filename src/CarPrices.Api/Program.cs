@@ -1,5 +1,7 @@
+using CarPrices.Domain.Enums;
 using CarPrices.Enrichment;
 using CarPrices.Infrastructure;
+using CarPrices.Normalization;
 using CarPrices.Scraping;
 using CarPrices.Scraping.Collection;
 using CarPrices.Scraping.Copart;
@@ -89,7 +91,37 @@ api.MapPost("/scrape/iaai/close-capture", async (IaaiCollector collector, Cancel
 api.MapPost("/enrich", async (EnrichmentService svc, CancellationToken ct) =>
     Results.Ok(await svc.RunAsync(200, ct)));
 
+// --- Phase 4: analytics over captured sold lots ---
+api.MapGet("/stats/sold-overview", async (StatisticsService stats, CancellationToken ct) =>
+    Results.Ok(await stats.GetSoldOverviewAsync(ct)));
+
+api.MapGet("/stats/price-stats", async (long? makerId, long? modelId, StatisticsService stats, CancellationToken ct) =>
+    Results.Ok(await stats.GetPriceStatsAsync(makerId, modelId, ct)));
+
+api.MapGet("/stats/feature-impact", async (long makerId, long modelId, StatisticsService stats, CancellationToken ct) =>
+    Results.Ok(await stats.GetFeatureImpactsAsync(makerId, modelId, ct)));
+
+api.MapPost("/stats/rollup", async (RollupService rollup, FeatureImpactService impact, CancellationToken ct) =>
+    Results.Ok(new { priceStats = await rollup.ComputeAsync(3, ct), featureImpacts = await impact.ComputeAsync(3, ct) }));
+
+api.MapPost("/estimate", async (EstimateRequest req, EstimatorService est, TaxonomyResolver taxonomy, CancellationToken ct) =>
+{
+    long? makerId = null, modelId = null;
+    if (!string.IsNullOrWhiteSpace(req.Make))
+    {
+        makerId = await taxonomy.ResolveMakerAsync(req.Make, autoCreate: false, ct);
+        if (makerId is long mk && !string.IsNullOrWhiteSpace(req.Model))
+            modelId = await taxonomy.ResolveModelAsync(mk, req.Model, autoCreate: false, ct);
+    }
+    TitleGroup? tg = Enum.TryParse<TitleGroup>(req.TitleGroup, true, out var t) ? t : null;
+    DamageGroup? dg = Enum.TryParse<DamageGroup>(req.DamageGroup, true, out var d) ? d : null;
+    var query = new EstimateQuery(makerId, modelId, null, req.Year, req.YearTolerance ?? 1, req.Mileage, tg, dg);
+    return Results.Ok(await est.EstimateAsync(query, ct));
+});
+
 // SPA fallback (serves wwwroot/index.html when a React build is present).
 app.MapFallbackToFile("index.html");
 
 app.Run();
+
+record EstimateRequest(string? Make, string? Model, int? Year, int? YearTolerance, int? Mileage, string? TitleGroup, string? DamageGroup);

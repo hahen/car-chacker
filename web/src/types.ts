@@ -35,3 +35,24 @@ export interface ImportResult {
   updated: number
   skipped: number
 }
+
+export interface SoldOverview {
+  soldLots: number
+  medianSoldPrice: number | null
+  minYear: number | null
+  maxYear: number | null
+  priceStatRows: number
+  featureImpactRows: number
+  lastComputedUtc: string | null
+}
+
+export interface EstimateResult {
+  comparables: number
+  median: number | null
+  p25: number | null
+  p75: number | null
+  mean: number | null
+  suggested: number | null
+  mileageAdjusted: number | null
+  basis: string
+}

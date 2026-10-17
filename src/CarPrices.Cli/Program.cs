@@ -71,6 +71,14 @@ switch (cmd)
         break;
     }
 
+    case "stats" when sub == "rollup":
+    {
+        var n = await sp.GetRequiredService<RollupService>().ComputeAsync();
+        var m = await sp.GetRequiredService<FeatureImpactService>().ComputeAsync();
+        Console.WriteLine($"Rollup: {n} price-stat rows, {m} feature-impact rows.");
+        break;
+    }
+
     case "makes":
     {
         var stats = sp.GetRequiredService<StatisticsService>();
@@ -189,6 +197,7 @@ switch (cmd)
               import vincheck --file <path>    Import a local CSV/JSON index
               import vincheck [--url <url>]    Download + import the live index
               stats overview                   Print market overview
+              stats rollup                     Recompute PriceStats + FeaturePriceImpact from sold lots
               makes                            List makes with observation counts
               targets sync                     Load collection targets from config into the DB
               targets list                     List collection targets

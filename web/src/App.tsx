@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from './api'
 import { PriceChart } from './components/PriceChart'
-import type { MakeSummary, MarketOverview, ModelPriceSeries } from './types'
+import type { EstimateResult, MakeSummary, MarketOverview, ModelPriceSeries, SoldOverview } from './types'
 
 const money = (v: number | null | undefined) =>
   v == null ? '—' : v.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
@@ -14,16 +14,20 @@ export default function App() {
   const [models, setModels] = useState<string[]>([])
   const [selectedModel, setSelectedModel] = useState('')
   const [series, setSeries] = useState<ModelPriceSeries | null>(null)
+  const [sold, setSold] = useState<SoldOverview | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function loadSummary() {
     setError(null)
     try {
-      const [ov, ms, mk] = await Promise.all([api.overview(), api.makesSummary(), api.makes()])
+      const [ov, ms, mk, so] = await Promise.all([
+        api.overview(), api.makesSummary(), api.makes(), api.soldOverview(),
+      ])
       setOverview(ov)
       setMakes(ms)
       setMakeList(mk)
+      setSold(so)
       if (mk.length && !selectedMake) setSelectedMake(mk[0])
     } catch (e) {
       setError(String(e))
@@ -59,6 +63,19 @@ export default function App() {
     setError(null)
     try {
       await api.importSample()
+      await loadSummary()
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function recompute() {
+    setBusy(true)
+    setError(null)
+    try {
+      await api.recomputeRollup()
       await loadSummary()
     } catch (e) {
       setError(String(e))
@@ -192,6 +209,32 @@ export default function App() {
         </section>
       </div>
 
+      <section className="sold">
+        <div className="sold-head">
+          <h2>Captured sold data</h2>
+          <button className="ghost" onClick={recompute} disabled={busy}>Recompute rollups</button>
+        </div>
+        <div className="cards">
+          <Card label="Sold lots" value={sold?.soldLots ?? '—'} />
+          <Card label="Median sold" value={money(sold?.medianSoldPrice)} />
+          <Card label="Year range" value={sold?.minYear ? `${sold.minYear}–${sold.maxYear}` : '—'} />
+          <Card label="Price-stat rows" value={sold?.priceStatRows ?? '—'} />
+          <Card label="Feature impacts" value={sold?.featureImpactRows ?? '—'} />
+          <Card
+            label="Computed"
+            value={sold?.lastComputedUtc ? new Date(sold.lastComputedUtc).toLocaleDateString() : '—'}
+          />
+        </div>
+        {sold && sold.soldLots === 0 && (
+          <p className="muted-note">
+            No sold lots captured yet — run the collectors (<code>scrape copart</code> / <code>scrape iaai</code>)
+            and <code>capture-close</code>, then recompute.
+          </p>
+        )}
+      </section>
+
+      <Estimator />
+
       <footer className="foot">
         Data source: VinCheck aggregate index (CC BY 4.0). Sample data is illustrative only.
       </footer>
@@ -205,5 +248,61 @@ function Card({ label, value }: { label: string; value: string | number }) {
       <div className="card-label">{label}</div>
       <div className="card-value">{value}</div>
     </div>
+  )
+}
+
+function Estimator() {
+  const [make, setMake] = useState('BMW')
+  const [model, setModel] = useState('3 Series')
+  const [year, setYear] = useState('')
+  const [mileage, setMileage] = useState('')
+  const [result, setResult] = useState<EstimateResult | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  async function run() {
+    setBusy(true)
+    setErr(null)
+    try {
+      const r = await api.estimate({
+        make,
+        model,
+        year: year ? Number(year) : null,
+        mileage: mileage ? Number(mileage) : null,
+      })
+      setResult(r)
+    } catch (e) {
+      setErr(String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="panel estimator">
+      <h2>Price estimator</h2>
+      <p className="legend">Estimates a fair price from comparable captured sold lots.</p>
+      <div className="selectors">
+        <label>Make<input value={make} onChange={(e) => setMake(e.target.value)} /></label>
+        <label>Model<input value={model} onChange={(e) => setModel(e.target.value)} /></label>
+        <label>Year<input value={year} onChange={(e) => setYear(e.target.value)} inputMode="numeric" /></label>
+        <label>Mileage<input value={mileage} onChange={(e) => setMileage(e.target.value)} inputMode="numeric" /></label>
+        <button onClick={run} disabled={busy} style={{ alignSelf: 'flex-end' }}>
+          {busy ? 'Estimating…' : 'Estimate'}
+        </button>
+      </div>
+      {err && <div className="banner error">{err}</div>}
+      {result &&
+        (result.comparables === 0 ? (
+          <p className="muted-note">No comparable sold lots yet for that vehicle. {result.basis}</p>
+        ) : (
+          <div className="cards">
+            <Card label="Suggested" value={money(result.suggested)} />
+            <Card label="P25–P75" value={`${money(result.p25)} – ${money(result.p75)}`} />
+            <Card label="Mileage-adj." value={money(result.mileageAdjusted)} />
+            <Card label="Comparables" value={result.comparables} />
+          </div>
+        ))}
+    </section>
   )
 }
