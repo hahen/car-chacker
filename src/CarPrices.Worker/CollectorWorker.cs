@@ -1,5 +1,6 @@
 using CarPrices.Infrastructure;
 using CarPrices.Scraping.Copart;
+using CarPrices.Scraping.Iaai;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -58,18 +59,18 @@ public class CollectorWorker(
     private async Task RunDiscoveryAsync(CancellationToken ct)
     {
         using var scope = services.CreateScope();
-        var collector = scope.ServiceProvider.GetRequiredService<CopartCollector>();
-        var r = await collector.RunDiscoveryAsync(ct);
-        logger.LogInformation("Discovery #{Id}: seen={Seen} new={New} updated={Upd} errors={Err}",
-            r.RunId, r.LotsSeen, r.New, r.Updated, r.Errors);
+        var copart = await scope.ServiceProvider.GetRequiredService<CopartCollector>().RunDiscoveryAsync(ct);
+        logger.LogInformation("Copart discovery #{Id}: new={New} updated={Upd} errors={Err}", copart.RunId, copart.New, copart.Updated, copart.Errors);
+        var iaai = await scope.ServiceProvider.GetRequiredService<IaaiCollector>().RunDiscoveryAsync(ct);
+        logger.LogInformation("IAAI discovery #{Id}: new={New} updated={Upd} errors={Err}", iaai.RunId, iaai.New, iaai.Updated, iaai.Errors);
     }
 
     private async Task RunCloseAsync(CancellationToken ct)
     {
         using var scope = services.CreateScope();
-        var collector = scope.ServiceProvider.GetRequiredService<CopartCollector>();
-        var r = await collector.RunCloseCaptureAsync(200, ct);
-        logger.LogInformation("Close-capture #{Id}: seen={Seen} captured={Cap} errors={Err}",
-            r.RunId, r.LotsSeen, r.PricesCaptured, r.Errors);
+        var copart = await scope.ServiceProvider.GetRequiredService<CopartCollector>().RunCloseCaptureAsync(200, ct);
+        logger.LogInformation("Copart close-capture #{Id}: captured={Cap} errors={Err}", copart.RunId, copart.PricesCaptured, copart.Errors);
+        var iaai = await scope.ServiceProvider.GetRequiredService<IaaiCollector>().RunCloseCaptureAsync(100, ct);
+        logger.LogInformation("IAAI close-capture #{Id}: captured={Cap} errors={Err}", iaai.RunId, iaai.PricesCaptured, iaai.Errors);
     }
 }

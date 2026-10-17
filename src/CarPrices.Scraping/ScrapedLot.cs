@@ -1,6 +1,7 @@
-namespace CarPrices.Scraping.Copart;
+namespace CarPrices.Scraping;
 
-/// <summary>Normalized view of one Copart search-result lot, decoded from the raw short-key JSON.</summary>
+/// <summary>Source-agnostic normalized view of one auction lot, produced by a source parser
+/// (Copart JSON, IAAI HTML, …) and consumed by the ingestion service.</summary>
 public class ScrapedLot
 {
     public string LotNumber { get; set; } = string.Empty;
@@ -17,8 +18,8 @@ public class ScrapedLot
 
     public DateTime? AuctionDateUtc { get; set; }
     public DateTime? LastAuctionDateUtc { get; set; }
-    public int? SaleStatusCode { get; set; }   // ss
-    public string? LotStatus { get; set; }      // lsts
+    public int? SaleStatusCode { get; set; }
+    public string? LotStatus { get; set; }
 
     public string? YardName { get; set; }
     public string? LocationCity { get; set; }
@@ -26,20 +27,22 @@ public class ScrapedLot
     public string? LocationCountry { get; set; }
 
     public int? Odometer { get; set; }
-    public string? OdometerBrandCode { get; set; } // obc: A/N/E/X
+    public string? OdometerBrandCode { get; set; }
     public string? Color { get; set; }
     public string? DriveType { get; set; }
     public string? FuelType { get; set; }
     public string? EngineDescription { get; set; }
 
-    public string? TitleDescription { get; set; }  // td
-    public string? TitleGroupCode { get; set; }     // tgc
-    public string? PrimaryDamage { get; set; }      // dd
-    public string? SecondaryDamage { get; set; }    // sdd
+    public string? TitleDescription { get; set; }
+    public string? TitleGroupCode { get; set; }
+    public string? PrimaryDamage { get; set; }
+    public string? SecondaryDamage { get; set; }
     public bool? HasKeys { get; set; }
+    public string? RunAndDriveRaw { get; set; }
+    public string? LotUrl { get; set; }
 
     public List<string> ImageUrls { get; } = new();
 
-    /// <summary>The raw per-lot JSON, retained for re-processing.</summary>
+    /// <summary>The raw per-lot payload (JSON or HTML fragment), retained for re-processing.</summary>
     public string RawJson { get; set; } = string.Empty;
 }

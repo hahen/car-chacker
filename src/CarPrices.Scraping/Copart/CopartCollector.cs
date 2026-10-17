@@ -9,8 +9,6 @@ using Microsoft.Extensions.Options;
 
 namespace CarPrices.Scraping.Copart;
 
-public record ScrapeRunSummary(long RunId, int LotsSeen, int New, int Updated, int PricesCaptured, int Errors);
-
 /// <summary>
 /// Orchestrates Copart collection: discovery (search each enabled target, upsert lots) and
 /// close-capture (re-check lots whose auction has passed to record the final price). Each run is

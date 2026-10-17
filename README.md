@@ -11,7 +11,9 @@ Full design: [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
 > make/model/trim normalization, idempotent Car/Lot upsert, and a close-capture pass for final prices.
 > **Phase 2:** enrichment — NHTSA vPIC VIN decode (cached), baseline feature extraction, and
 > VIN-from-image recovery (barcode via ZXing, pluggable OCR, check-digit + masked-pattern validation).
-> IAAI and advanced analytics come in later phases.
+> **Phase 3:** the IAAI collector — Playwright + HTML parsing (AngleSharp) behind Incapsula, scoped by
+> the same collection targets, with discovery, image-URL capture, and best-effort close-capture.
+> Advanced analytics (price rollups, feature impact, estimator) come in later phases.
 
 ## Prerequisites
 
@@ -27,7 +29,7 @@ Full design: [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
 src/
   CarPrices.Domain          Entities + enums (no dependencies)
   CarPrices.Infrastructure  EF Core DbContext, migrations, SQLite, seed data
-  CarPrices.Scraping        VinCheck importer (Copart/IAAI clients come later)
+  CarPrices.Scraping        VinCheck importer + Copart (JSON) & IAAI (HTML) collectors
   CarPrices.Enrichment      VIN decode / feature extraction (later)
   CarPrices.Vision          VIN-from-image: barcode + OCR (later)
   CarPrices.Normalization   maker/model/trim + feature normalization (later)
@@ -91,7 +93,8 @@ targets add --make <m> [--model <m>] [--year-from <y>] [--sources <a,b>]
 targets list                    List collection targets
 targets sync                    Load collection targets from config into the DB
 scrape copart                   Run Copart discovery for enabled targets (needs Playwright)
-capture-close                   Re-check closed lots to record final sale prices
+scrape iaai                     Run IAAI discovery for enabled targets (needs Playwright)
+capture-close [iaai]            Re-check closed lots to record final sale prices
 enrich                          vPIC VIN decode + baseline feature extraction
 vin-from-image --file <p> [--lot <id>] [--pattern <11>]   Recover a VIN from an image
 ```
@@ -126,6 +129,24 @@ How it works:
 > ⚠️ The exact Copart field meanings and end-of-sale status codes were inferred from live responses;
 > the close-capture `SaleStatus` heuristics (`CopartCollector.ClassifyFinal`) should be tuned against
 > real sold lots. Raw payloads are retained so lots can be re-normalized without re-scraping.
+
+### IAAI collector (Phase 3)
+
+```bash
+dotnet run --project src/CarPrices.Cli -- scrape iaai      # discovery
+dotnet run --project src/CarPrices.Cli -- capture-close iaai
+```
+
+IAAI serves its vehicle list as **server-rendered HTML** (no clean JSON feed), so `IaaiClient`
+(Playwright) fetches the search page and `IaaiLotParser` (AngleSharp) extracts each card. The reliable
+identity fields (VIN, year, make/model/trim, item id, branch, auction date, status) come straight from
+the card's `onclick`/`href` attributes; body fields (odometer, damage, prices, engine) are parsed
+best-effort from the `data-list` text. IAAI exposes image URLs directly (`vis.iaai.com/resizer?...`),
+which are stored as `LotImages` for the VIN-from-image step.
+
+> ⚠️ IAAI body-field parsing and the close-capture `DetectSold` heuristic were built from a live card
+> sample and should be verified against more pages; pagination is best-effort (stops when a page
+> yields no new lots).
 
 ## Enrichment (Phase 2)
 

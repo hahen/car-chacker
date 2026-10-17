@@ -6,6 +6,7 @@ using CarPrices.Vision;
 using CarPrices.Scraping;
 using CarPrices.Scraping.Collection;
 using CarPrices.Scraping.Copart;
+using CarPrices.Scraping.Iaai;
 using CarPrices.Scraping.VinCheck;
 using CarPrices.Statistics;
 using Microsoft.Extensions.Configuration;
@@ -121,6 +122,22 @@ switch (cmd)
         break;
     }
 
+    case "scrape" when sub == "iaai":
+    {
+        var collector = sp.GetRequiredService<IaaiCollector>();
+        var r = await collector.RunDiscoveryAsync();
+        Console.WriteLine($"IAAI discovery run #{r.RunId}: seen={r.LotsSeen} new={r.New} updated={r.Updated} errors={r.Errors}");
+        break;
+    }
+
+    case "capture-close" when sub == "iaai":
+    {
+        var collector = sp.GetRequiredService<IaaiCollector>();
+        var r = await collector.RunCloseCaptureAsync();
+        Console.WriteLine($"IAAI close-capture run #{r.RunId}: seen={r.LotsSeen} captured={r.PricesCaptured} updated={r.Updated} errors={r.Errors}");
+        break;
+    }
+
     case "capture-close":
     {
         var collector = sp.GetRequiredService<CopartCollector>();
@@ -177,7 +194,8 @@ switch (cmd)
               targets list                     List collection targets
               targets add --make <m> [--model <m>] [--trim <t>] [--year-from <y>] [--year-to <y>] [--sources <a,b>]
               scrape copart                    Run Copart discovery for enabled targets (needs Playwright)
-              capture-close                    Re-check closed lots to record final prices
+              scrape iaai                      Run IAAI discovery for enabled targets (needs Playwright)
+              capture-close [iaai]             Re-check closed lots to record final prices
               enrich                           vPIC VIN decode + baseline feature extraction
               vin-from-image --file <path> [--lot <id>] [--pattern <11>]   Recover VIN from an image
             """);

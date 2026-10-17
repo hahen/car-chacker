@@ -1,6 +1,6 @@
 using CarPrices.Domain.Enums;
 using CarPrices.Normalization;
-using CarPrices.Scraping.Copart;
+using CarPrices.Scraping;
 using CarPrices.Scraping.Ingestion;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;

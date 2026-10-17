@@ -2,7 +2,6 @@ using CarPrices.Domain.Entities;
 using CarPrices.Domain.Enums;
 using CarPrices.Infrastructure;
 using CarPrices.Normalization;
-using CarPrices.Scraping.Copart;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -114,6 +113,15 @@ public class LotIngestionService(AppDbContext db, TaxonomyResolver taxonomy, ILo
         lot.RawPayload = raw;
 
         await db.SaveChangesAsync(ct);
+
+        if (s.ImageUrls.Count > 0 && !await db.LotImages.AnyAsync(i => i.LotId == lot.Id, ct))
+        {
+            var seq = 0;
+            foreach (var url in s.ImageUrls.Where(u => !string.IsNullOrWhiteSpace(u)).Distinct())
+                db.LotImages.Add(new LotImage { LotId = lot.Id, Url = url, Sequence = seq++ });
+            await db.SaveChangesAsync(ct);
+        }
+
         logger.LogDebug("Ingested lot {Lot} ({State}) -> car {Car}", s.LotNumber, newLot ? "new" : "updated", car.Id);
         return new IngestOutcome(newLot, car.Id, lot.Id);
     }

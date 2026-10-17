@@ -1,0 +1,8 @@
+<Project>
+  <!-- Only fail/warn on high+critical dependency advisories; AngleSharp has an open
+       moderate ReDoS advisory with no patched release, and our HTML input is from a
+       known site parsed server-side. -->
+  <PropertyGroup>
+    <NuGetAuditLevel>high</NuGetAuditLevel>
+  </PropertyGroup>
+</Project>

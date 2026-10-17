@@ -3,6 +3,7 @@ using CarPrices.Infrastructure;
 using CarPrices.Scraping;
 using CarPrices.Scraping.Collection;
 using CarPrices.Scraping.Copart;
+using CarPrices.Scraping.Iaai;
 using CarPrices.Scraping.VinCheck;
 using CarPrices.Statistics;
 
@@ -78,6 +79,12 @@ api.MapPost("/scrape/copart/discovery", async (CopartCollector collector, Cancel
 
 api.MapPost("/scrape/copart/close-capture", async (CopartCollector collector, CancellationToken ct) =>
     Results.Ok(await collector.RunCloseCaptureAsync(200, ct)));
+
+api.MapPost("/scrape/iaai/discovery", async (IaaiCollector collector, CancellationToken ct) =>
+    Results.Ok(await collector.RunDiscoveryAsync(ct)));
+
+api.MapPost("/scrape/iaai/close-capture", async (IaaiCollector collector, CancellationToken ct) =>
+    Results.Ok(await collector.RunCloseCaptureAsync(100, ct)));
 
 api.MapPost("/enrich", async (EnrichmentService svc, CancellationToken ct) =>
     Results.Ok(await svc.RunAsync(200, ct)));

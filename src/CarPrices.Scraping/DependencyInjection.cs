@@ -1,6 +1,7 @@
 using CarPrices.Normalization;
 using CarPrices.Scraping.Collection;
 using CarPrices.Scraping.Copart;
+using CarPrices.Scraping.Iaai;
 using CarPrices.Scraping.Ingestion;
 using CarPrices.Scraping.VinCheck;
 using Microsoft.Extensions.Configuration;
@@ -23,15 +24,18 @@ public static class DependencyInjection
         services.AddScoped<LotIngestionService>();
         services.AddScoped<CollectionTargetService>();
         services.AddScoped<CopartCollector>();
+        services.AddScoped<IaaiCollector>();
 
         if (config is not null)
         {
             services.Configure<CopartOptions>(config.GetSection("Copart"));
+            services.Configure<IaaiOptions>(config.GetSection("Iaai"));
             services.Configure<CollectionOptions>(config.GetSection("Collection"));
         }
         else
         {
             services.AddOptions<CopartOptions>();
+            services.AddOptions<IaaiOptions>();
             services.AddOptions<CollectionOptions>();
         }
 
