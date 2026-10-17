@@ -5,11 +5,12 @@ obj/
 [Rr]elease/
 *.user
 
-# Data (local SQLite database + downloads)
+# Data (local SQLite database + downloads + scraper browser profiles)
 data/*.db
 data/*.db-shm
 data/*.db-wal
 data/downloads/
+data/.playwright/
 
 # EF
 *.db-journal
