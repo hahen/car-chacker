@@ -1,6 +1,8 @@
 import type {
+  CatalogFacet,
   EstimateResult,
   ImportResult,
+  LotSearchResult,
   MakeSummary,
   MarketOverview,
   ModelPriceSeries,
@@ -42,4 +44,14 @@ export const api = {
   soldOverview: () => get<SoldOverview>('/api/stats/sold-overview'),
   recomputeRollup: () => post<{ priceStats: number; featureImpacts: number }>('/api/stats/rollup'),
   estimate: (body: Record<string, unknown>) => postJson<EstimateResult>('/api/estimate', body),
+  catalogMakes: () => get<CatalogFacet[]>('/api/catalog/makes'),
+  catalogModels: (make: string) => get<CatalogFacet[]>(`/api/catalog/models?make=${encodeURIComponent(make)}`),
+  searchLots: (params: Record<string, string | number>) => {
+    const qs = new URLSearchParams(
+      Object.entries(params)
+        .filter(([, v]) => v !== '' && v != null)
+        .map(([k, v]) => [k, String(v)]),
+    ).toString()
+    return get<LotSearchResult>('/api/lots?' + qs)
+  },
 }

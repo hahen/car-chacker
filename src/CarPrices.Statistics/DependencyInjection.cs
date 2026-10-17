@@ -7,6 +7,7 @@ public static class DependencyInjection
     public static IServiceCollection AddStatistics(this IServiceCollection services)
     {
         services.AddScoped<StatisticsService>();
+        services.AddScoped<CatalogService>();
         services.AddScoped<RollupService>();
         services.AddScoped<FeatureImpactService>();
         services.AddScoped<EstimatorService>();

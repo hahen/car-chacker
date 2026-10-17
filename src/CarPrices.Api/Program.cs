@@ -119,6 +119,16 @@ api.MapPost("/estimate", async (EstimateRequest req, EstimatorService est, Taxon
     return Results.Ok(await est.EstimateAsync(query, ct));
 });
 
+// --- Inventory browse (real captured lots: photos, VIN, prices, auctions) ---
+api.MapGet("/catalog/makes", async (CatalogService svc, CancellationToken ct) =>
+    Results.Ok(await svc.GetMakesAsync(ct)));
+
+api.MapGet("/catalog/models", async (string make, CatalogService svc, CancellationToken ct) =>
+    Results.Ok(await svc.GetModelsAsync(make, ct)));
+
+api.MapGet("/lots", async ([AsParameters] LotFilter filter, CatalogService svc, CancellationToken ct) =>
+    Results.Ok(await svc.SearchLotsAsync(filter, ct)));
+
 // SPA fallback (serves wwwroot/index.html when a React build is present).
 app.MapFallbackToFile("index.html");
 

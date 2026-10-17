@@ -56,3 +56,41 @@ export interface EstimateResult {
   mileageAdjusted: number | null
   basis: string
 }
+
+export interface CatalogFacet {
+  name: string
+  count: number
+}
+
+export interface LotListItem {
+  id: number
+  source: string
+  lotNumber: string
+  lotUrl: string | null
+  make: string | null
+  model: string | null
+  trim: string | null
+  year: number | null
+  vin: string | null
+  vinFull: boolean
+  currentBid: number | null
+  buyNowPrice: number | null
+  salePrice: number | null
+  isSold: boolean
+  status: string
+  titleCode: string | null
+  damageCode: string | null
+  odometer: number | null
+  locationCity: string | null
+  locationState: string | null
+  auctionDateUtc: string | null
+  thumbnailUrl: string | null
+  features: string[]
+}
+
+export interface LotSearchResult {
+  total: number
+  page: number
+  pageSize: number
+  items: LotListItem[]
+}

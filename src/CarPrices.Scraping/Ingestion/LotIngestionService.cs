@@ -96,6 +96,7 @@ public class LotIngestionService(AppDbContext db, TaxonomyResolver taxonomy, ILo
         lot.BuyNowPrice = s.BuyNowPrice;
         lot.EstimatedRetailValue = s.EstimatedRetailValue;
         lot.Currency = s.Currency ?? lot.Currency;
+        lot.LotUrl = s.LotUrl ?? lot.LotUrl;
         lot.Odometer = s.Odometer;
         lot.OdometerBrand = CopartMappings.OdometerBrandFrom(s.OdometerBrandCode);
         lot.YardCode = s.YardName;

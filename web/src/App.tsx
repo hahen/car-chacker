@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from './api'
+import { Inventory } from './components/Inventory'
 import { PriceChart } from './components/PriceChart'
 import type { EstimateResult, MakeSummary, MarketOverview, ModelPriceSeries, SoldOverview } from './types'
 
@@ -110,6 +111,9 @@ export default function App() {
         </div>
       )}
 
+      <Inventory />
+
+      <h2 className="section-h">Market statistics (VinCheck index)</h2>
       <section className="cards">
         <Card label="Makes" value={overview?.makes ?? '—'} />
         <Card label="Models" value={overview?.models ?? '—'} />
