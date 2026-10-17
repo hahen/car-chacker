@@ -16,6 +16,10 @@ public class ScrapedLot
     public decimal? EstimatedRetailValue { get; set; }
     public string? Currency { get; set; }
 
+    /// <summary>Confirmed final sale price (set by historical/archive sources).</summary>
+    public decimal? SalePrice { get; set; }
+    public bool IsSold { get; set; }
+
     public DateTime? AuctionDateUtc { get; set; }
     public DateTime? LastAuctionDateUtc { get; set; }
     public int? SaleStatusCode { get; set; }

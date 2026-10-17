@@ -9,6 +9,7 @@ public enum Source
     BidFax = 4,
     VinCheck = 5,
     Manual = 6,
+    CarsBidsHistory = 7,
     Other = 99,
 }
 

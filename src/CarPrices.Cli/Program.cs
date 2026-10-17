@@ -6,6 +6,7 @@ using CarPrices.Vision;
 using CarPrices.Scraping;
 using CarPrices.Scraping.Collection;
 using CarPrices.Scraping.Copart;
+using CarPrices.Scraping.History;
 using CarPrices.Scraping.Iaai;
 using CarPrices.Scraping.VinCheck;
 using CarPrices.Statistics;
@@ -159,6 +160,24 @@ switch (cmd)
         break;
     }
 
+    case "scrape" when sub == "history":
+    {
+        var mk = TryGetOption(args, "--make", out var mkv) ? mkv : "";
+        var md = TryGetOption(args, "--model", out var mdv) ? mdv : "";
+        if (string.IsNullOrWhiteSpace(mk) || string.IsNullOrWhiteSpace(md))
+        {
+            Console.WriteLine("--make and --model are required.");
+            break;
+        }
+        int? maxCars = TryGetOption(args, "--max-cars", out var mc) && int.TryParse(mc, out var mci) ? mci : null;
+        int? yearFrom = TryGetOption(args, "--year-from", out var yf) && int.TryParse(yf, out var yfi) ? yfi : null;
+        int? yearTo = TryGetOption(args, "--year-to", out var yt) && int.TryParse(yt, out var yti) ? yti : null;
+        var collector = sp.GetRequiredService<CarsBidsHistoryCollector>();
+        var r = await collector.RunAsync(mk, md, maxCars, yearFrom, yearTo);
+        Console.WriteLine($"History run #{r.RunId}: sold rows seen={r.LotsSeen} new={r.New} updated={r.Updated} errors={r.Errors}");
+        break;
+    }
+
     case "capture-close" when sub == "iaai":
     {
         var collector = sp.GetRequiredService<IaaiCollector>();
@@ -226,6 +245,7 @@ switch (cmd)
               targets add --make <m> [--model <m>] [--trim <t>] [--year-from <y>] [--year-to <y>] [--sources <a,b>]
               scrape copart                    Run Copart discovery for enabled targets (needs Playwright)
               scrape iaai                      Run IAAI discovery for enabled targets (needs Playwright)
+              scrape history --make <m> --model <m> [--year-from Y] [--year-to Y] [--max-cars N]   Scrape sold-price history (carsbidshistory)
               capture-close [iaai]             Re-check closed lots to record final prices
               enrich                           vPIC VIN decode + baseline feature extraction
               vin-from-image --file <path> [--lot <id>] [--pattern <11>]   Recover VIN from an image

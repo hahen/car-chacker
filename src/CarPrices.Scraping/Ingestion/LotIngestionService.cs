@@ -107,6 +107,14 @@ public class LotIngestionService(AppDbContext db, TaxonomyResolver taxonomy, ILo
         lot.SaleStatusRaw = $"ss={s.SaleStatusCode};lsts={s.LotStatus}";
         if (lot.SaleStatus is SaleStatus.Unknown or SaleStatus.Upcoming or SaleStatus.Live)
             lot.SaleStatus = CopartMappings.DiscoverySaleStatus(s.AuctionDateUtc, now);
+        if (s.IsSold)
+        {
+            lot.IsSold = true;
+            lot.SalePrice = s.SalePrice ?? lot.SalePrice;
+            lot.FinalBid = s.SalePrice ?? lot.FinalBid;
+            lot.SaleStatus = SaleStatus.Sold;
+            lot.SaleCapturedAtUtc = now;
+        }
         lot.TitleTypeId = ResolveTitle(s);
         lot.PrimaryDamageId = ResolveDamage(s.PrimaryDamage);
         lot.SecondaryDamageId = ResolveDamage(s.SecondaryDamage);
